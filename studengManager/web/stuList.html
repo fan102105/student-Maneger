@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>学生信息列表</title>
+    <style>
+        .el-aside {
+            background-color: #D3DCE6;
+            color: #333;
+            text-align: center;
+            line-height: 200px;
+        }
+
+
+        body > .el-container {
+            margin-bottom: 20px;
+        }
+
+        .el-container:nth-child(5) .el-aside,
+        .el-container:nth-child(6) .el-aside {
+            line-height: 260px;
+        }
+
+        .el-container:nth-child(7) .el-aside {
+            line-height: 320px;
+        }
+
+        .el-header {
+            backgroud-color: #545c64;
+        }
+
+    </style>
+    <script src="js/vue.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script src="axios/axios-0.18.0.js"></script>
+
+</head>
+<body>
+<!-- 主区域-->
+<div id="div">
+    <b style="color:red; font-size:20px">学生列表</b>
+    <div>
+        <button style="float:right" @click="showAddStu()">添加学生</button>
+    </div>
+
+    <el-table :data="tableData" stripe style="width: 100%;">
+        <el-table-column prop="number" label="学号" width="120">
+        </el-table-column>
+        <el-table-column prop="name" label="姓名" width="120">
+        </el-table-column>
+        <el-table-column prop="birthday" label="生日" width="140">
+        </el-table-column>
+        <el-table-column prop="address" label="地址" width="160">
+        </el-table-column>
+        <el-table-column label="操作" width="180">
+            <template slot-scope="props">
+                <el-button type="warning" @click="showEditStu(props.row)">编辑</el-button>
+                <el-button type="danger" @click="deleteStu(props.row)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <!--分页插件pagination-->
+    <el-pagination
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            :current-page="pagination.currentPage"
+            :page-sizes="[3,5,8]"
+            :page-size="pagination.pageSize"
+            layout="total,sizes, prev, pager, next, jumper"
+            :total="pagination.total">
+    </el-pagination>
+
+    <!--添加表单-->
+    <el-dialog title="添加学生信息" :visible.sync="dialogTableVisible4add" @close="resetForm('addForm')">
+        <!--
+            :model="formData":  关联数据
+            :rules:  关联校验规则
+            ref:    在获取表单对象时使用
+        -->
+        <el-form :model="formData" :rules="rules" ref="addForm" label-width="100px" class="demo-ruleForm">
+            <el-form-item label="学生学号" prop="number">
+                <el-input v-model="formData.number"></el-input>
+            </el-form-item>
+            <el-form-item label="学生姓名" prop="name">
+                <el-input v-model="formData.name"></el-input>
+            </el-form-item>
+            <el-form-item label="学生生日" prop="birthday">
+                <el-input v-model="formData.birthday"></el-input>
+            </el-form-item>
+            <el-form-item label="学生地址" prop="address">
+                <el-input v-model="formData.address"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="addStu()">提交</el-button>
+                <el-button @click="resetForm('addForm')">重置</el-button>
+            </el-form-item>
+        </el-form>
+    </el-dialog>
+
+    <!--编辑表单-->
+    <el-dialog title="编辑学生信息" :visible.sync="dialogTableVisible4edit" @close="resetForm('editForm')">
+        <!--
+            :model="formData":  关联数据
+            :rules:  关联校验规则
+            ref:    在获取表单对象时使用
+        -->
+        <el-form :model="editFormData" :rules="rules" ref="editForm" label-width="100px" class="demo-ruleForm">
+            <el-form-item label="学生学号" prop="number">
+                <el-input v-model="editFormData.number" disabled="disabled"></el-input>
+            </el-form-item>
+            <el-form-item label="学生姓名" prop="name">
+                <el-input v-model="editFormData.name"></el-input>
+            </el-form-item>
+            <el-form-item label="学生生日" prop="birthday">
+                <el-input v-model="editFormData.birthday"></el-input>
+            </el-form-item>
+            <el-form-item label="学生地址" prop="address">
+                <el-input v-model="editFormData.address"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="editStu()">提交</el-button>
+                <el-button @click="resetEditForm('editForm')">重置</el-button>
+            </el-form-item>
+        </el-form>
+    </el-dialog>
+
+</div>
+<!--        </el-container>-->
+<!--    </el-container>-->
+</body>
+<script>
+    var vm = new Vue({
+        el: "#div",
+        data: {
+            dialogTableVisible4add: false,  //添加窗口显示状态
+            dialogTableVisible4edit: false, //编辑窗口显示状态
+            formData: {},     //添加表单的数据
+            editFormData: {},  //编辑表单的数据
+            tableData: [],   //表格数据
+            pagination: {
+                currentPage: 1, //当前页
+                pageSize: 5,    //每页显示条数
+                total: 0        //总条数
+            },
+            rules: {
+                number: [
+                    {required: true, message: "请输入学号", trigger: "blur"}
+                ],
+                name: [
+                    {required: true, message: '请输入姓名', trigger: 'blur'}
+                ],
+                birthday: [
+                    {required: true, message: '请选择日期', trigger: 'blur'}
+                ],
+                address: [
+                    {required: true, message: '请选择日期', trigger: 'blur'},
+                    {min: 2, max: 200, message: '长度在2到200个字符', trigger: 'blur'}
+                ]
+            }
+        },
+
+        methods: {
+            //分页查询功能
+            selectByPage() {
+                axios.post("studentServlet", "method=selectByPage&currentPage=" + this.pagination.currentPage + "&pageSize=" + this.pagination.pageSize)
+                    .then(resp => {
+                        this.tableData = resp.data.list;
+                        this.pagination.pageSize = resp.data.pageSize;
+                        this.pagination.currentPage = resp.data.pageNum;
+                        this.pagination.total = resp.data.total;
+                    })
+                    .catch(error => {
+                        alert("加载失败...")
+                    })
+            },
+
+            //改变每页条数时执行的函数
+            handleSizeChange(pageSize) {
+                //修改分页查询的参数
+                this.pagination.pageSize = pageSize;
+                //重新执行查询
+                this.selectByPage();
+            },
+
+            //改变页码时执行的函数
+            handleCurrentChange(currentPage) {
+                this.pagination.currentPage = currentPage;
+                //重新执行查询
+                this.selectByPage();
+            },
+
+            //打开添加编辑页面
+            showAddStu() {
+                this.dialogTableVisible4add = true;
+            },
+
+            addStu() {
+                var form = "method=addStu&number=" + this.formData.number + "&name=" + this.formData.name + "&birthday=" + this.formData.birthday + "&address=" + this.formData.address +
+                    "&currentPage=" + this.pagination.currentPage + "&pageSize=" + this.pagination.pageSize
+                axios.post("studentServlet", form)
+                    .then(resp => {
+                        //添加成功
+                        var data = resp.data;
+                        this.formData = data.list;
+                        this.pagination.pageSize = data.pageSize;
+                        this.pagination.currentPage = data.pageNum;
+                        this.pagination.total = data.total;
+                        this.selectByPage();
+                        this.dialogTableVisible4add = false;
+                    })
+                    .catch(error => {
+                        //添加失败
+                        this.resetForm('addForm')
+                    })
+            },
+
+            //显示编辑页面
+            showEditStu(row) {
+                this.editFormData = row;
+
+                this.dialogTableVisible4edit = true;
+            },
+
+            //编辑学生
+            editStu() {
+                axios.post("studentServlet", "method=editStu&number=" + this.editFormData.number + "&name=" + this.editFormData.name + "&birthday=" + this.editFormData.birthday + "&address=" + this.editFormData.address
+                    + "&pageSize=" + this.pagination.pageSize + "&currentPage=" + this.pagination.currentPage)
+                    .then(resp => {
+                        var data = resp.data;
+                        if (data) {
+                            this.selectByPage();
+                            this.dialogTableVisible4edit = false;
+                        } else {
+                            alert("更新失败")
+                        }
+                    })
+                    .catch(error=>{
+                        alert(error)
+                        location.reload();
+                    })
+
+            },
+            deleteStu(row) {
+                confirm("确认删除吗 " + row.name + "?");
+                axios.post("studentServlet", "method=deleteStu&number=" + row.number + "&pageSize=" + this.pagination.pageSize + "&currentPage=" + this.pagination.currentPage)
+                    .then(resp => {
+
+                        if (resp.data) {
+                            this.selectByPage()
+                        }
+                    })
+                    .catch(error => {
+                        location.reload()
+                    })
+            },
+            //清除添加表单
+            resetForm(addForm) {
+                this.formData = {}
+                this.$refs[addForm].resetFields();   //清除表单数据
+            },
+            //清除编辑表单
+            resetEditForm(editForm) {
+
+                this.editFormData = {}
+                this.$refs[editForm].resetFields();   //清除表单数据
+            },
+        },
+        //挂载方法
+        mounted() {
+            this.selectByPage();
+        }
+    });
+</script>
+</html>
